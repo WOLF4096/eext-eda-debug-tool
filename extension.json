@@ -1,0 +1,80 @@
+{
+	"name": "eext-eda-debug-tool",
+	"uuid": "00000000wolfblackdebugtool000000",
+	"displayName": "源码追加Debug工具",
+	"description": "将出错的源码找出来",
+	"version": "1.0.1",
+	"publisher": "wolfblack",
+	"engines": {
+		"eda": "^2.2.45"
+	},
+	"license": "Apache-2.0",
+	"repository": {
+		"type": "github",
+		"url": ""
+	},
+	"categories": ["PCB", "Schematic", "Other"],
+	"keywords": ["源码","Debug"],
+	"images": {
+		"logo": "./images/logo.png"
+	},
+	"homepage": "",
+	"bugs": "",
+	"activationEvents": {},
+	"entry": "./dist/index",
+	"dependentExtensions": {},
+	"headerMenus": {
+		"home": [
+			{
+				"id": "wolfblackhome",
+				"title": "开发工具",
+				"menuItems": [
+					{
+						"id": "SourceDebug",
+						"title": "源码追加Debug工具",
+						"registerFn": "SourceDebug"
+					}
+				]
+			}
+		],
+		"blank": [
+			{
+				"id": "wolfblackblank",
+				"title": "开发工具",
+				"menuItems": [
+					{
+						"id": "SourceDebug",
+						"title": "源码追加Debug工具",
+						"registerFn": "SourceDebug"
+					}
+				]
+			}
+		],
+		"sch": [
+			{
+				"id": "wolfblacksch",
+				"title": "开发工具",
+				"menuItems": [
+					{
+						"id": "SourceDebug",
+						"title": "源码追加Debug工具",
+						"registerFn": "SourceDebug"
+					}
+				]
+			}
+		],
+		"pcb": [
+			{
+				"id": "wolfblackpcb",
+				"title": "开发工具",
+				"menuItems": [
+					{
+						"id": "SourceDebug",
+						"title": "源码追加Debug工具",
+						"registerFn": "SourceDebug"
+					}
+				]
+			}
+		]
+	}
+}
