@@ -1,8 +1,8 @@
 # 源码追加 Debug 工具
 
-### 点击查看：演示视频
+### [点击查看：演示视频](https://pbt-pub.jlc.com/pbt/bbs/8705937944942686208-20260131_195316.mp4)
 
-[![演示视频](images/video.jpg)](https://pbt-pub.jlc.com/pbt/bbs/8705909115009617920-20260131_195316.mp4)
+![视频截图](images/video.jpg)
 
 ## 为什么需要这个插件？
 

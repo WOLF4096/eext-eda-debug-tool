@@ -16,14 +16,14 @@
         ::-webkit-scrollbar-thumb { background-color: #424242; border-radius: 6px; border: 3px solid #1e1e1e; }
         .container { display: flex; flex-direction: column; height: 100%; width: 100%; box-sizing: border-box; padding: 10px; }
         .toolbar { display: flex; justify-content: space-between; align-items: center; height: 40px; flex-shrink: 0; margin-bottom: 5px; }
-        h2 { font-size: 16px; margin: 0; color: #4ec9b0; }
+        h2 { font-size: 16px; margin: 0; color: #4ec9b0; font-weight: bold; }
         .btn-group { display: flex; gap: 10px; }
         button { color: white; border: none; padding: 5px 15px; cursor: pointer; font-size: 14px; border-radius: 3px; transition: background-color 0.2s; }
         #btnImport { background-color: #0e639c; }
         #btnImport:hover { background-color: #1177bb; }
         #btnImport:disabled { background-color: #555; cursor: not-allowed; }
         #btnCopy { background-color: #3a3d41; border: 1px solid #454545; }
-        .label-text { font-size: 12px; color: #888; margin-bottom: 3px; flex-shrink: 0; }
+        .label-text { font-size: 12px; color: #FFF; margin-bottom: 3px; flex-shrink: 0; }
         textarea { width: 100%; background-color: #252526; color: #d4d4d4; border: 1px solid #3c3c3c; outline: none; padding: 8px; box-sizing: border-box; font-family: inherit; font-size: 13px; flex: 1; white-space: pre; overflow: auto; resize: none; }
         textarea:focus { border-color: #007acc; }
         #sourceInput { margin-bottom: 10px; }
@@ -41,7 +41,7 @@
         </div>
     </div>
 
-    <div class="label-text">输入要追加的代码:</div>
+    <div class="label-text">粘贴要追加的代码:（仅用于测试源码可用性，数量太多会导致 EDA 崩溃）</div>
     <textarea id="sourceInput" placeholder="在此粘贴需要追加的图元源码..."></textarea>
 
     <div class="label-text" style="margin-top: 10px;">处理结果:</div>
