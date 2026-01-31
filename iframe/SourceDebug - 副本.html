@@ -19,20 +19,10 @@
         h2 { font-size: 16px; margin: 0; color: #4ec9b0; font-weight: bold; }
         .btn-group { display: flex; gap: 10px; }
         button { color: white; border: none; padding: 5px 15px; cursor: pointer; font-size: 14px; border-radius: 3px; transition: background-color 0.2s; }
-        
-        /* 按钮样式定义 */
         #btnImport { background-color: #0e639c; }
         #btnImport:hover { background-color: #1177bb; }
         #btnImport:disabled { background-color: #555; cursor: not-allowed; }
-        
-        /* 复制和获取源码按钮使用深色风格 */
-        #btnCopy, #btnGetSource { background-color: #3a3d41; border: 1px solid #454545; }
-        #btnCopy:hover, #btnGetSource:hover { background-color: #4a4d51; }
-        
-        /* 清空并粘贴按钮使用紫色风格以示区分 */
-        #btnPaste { background-color: #6c429c; }
-        #btnPaste:hover { background-color: #7e5bb0; }
-
+        #btnCopy { background-color: #3a3d41; border: 1px solid #454545; }
         .label-text { font-size: 12px; color: #FFF; margin-bottom: 3px; flex-shrink: 0; }
         textarea { width: 100%; background-color: #252526; color: #d4d4d4; border: 1px solid #3c3c3c; outline: none; padding: 8px; box-sizing: border-box; font-family: inherit; font-size: 13px; flex: 1; white-space: pre; overflow: auto; resize: none; }
         textarea:focus { border-color: #007acc; }
@@ -46,10 +36,8 @@
     <div class="toolbar">
         <h2 id="versionTitle">源码追加 Debug 工具</h2>
         <div class="btn-group">
-            <button id="btnGetSource" onclick="getPrimitiveSource()" title="获取当前文档源码（自动过滤头部）">获取图元源码</button>
-            <button id="btnPaste" onclick="clearAndPaste()" title="清空上方输入框并粘贴剪贴板内容">清空并粘贴</button>
             <button id="btnImport" onclick="startAppendProcess()">开始追加更新</button>
-            <button id="btnCopy" onclick="copyErrorLog()" title="复制下方结果框的内容">复制输出结果</button>
+            <button id="btnCopy" onclick="copyErrorLog()" title="复制下方错误框的内容">复制错误信息</button>
         </div>
     </div>
 
@@ -65,65 +53,6 @@
     const elErrorOutput = document.getElementById('errorOutput');
     const elBtn = document.getElementById('btnImport');
     const elBtnCopy = document.getElementById('btnCopy');
-
-    // --- 新增功能：清空并粘贴 ---
-    async function clearAndPaste() {
-        try {
-            const text = await navigator.clipboard.readText();
-            elSourceInput.value = text;
-            elSourceInput.focus();
-            eda.sys_Message.showToastMessage("已清空并粘贴剪贴板内容", "success");
-        } catch (err) {
-            console.error(err);
-            eda.sys_Message.showToastMessage("无法读取剪贴板，请手动粘贴", "error");
-        }
-    }
-
-    // --- 新增功能：获取图元源码 ---
-    async function getPrimitiveSource() {
-        elErrorOutput.value = "正在获取源码...";
-        elErrorOutput.style.color = "#d4d4d4"; // 设置为正常文本颜色
-
-        try {
-            // 1. 获取版本
-            const version = await eda.sys_Environment.getEditorCurrentVersion();
-            const isV3 = version.startsWith('3.');
-            
-            // 2. 获取全量源码
-            const fullSource = await eda.sys_FileManager.getDocumentSource();
-            
-            if (!fullSource) {
-                elErrorOutput.value = "当前文档为空或无法获取源码。";
-                return;
-            }
-
-            // 3. 根据版本确定截取行数
-            // V3: 137行后, V2: 185行后
-            const cutoffLine = isV3 ? 139 : 187;
-            
-            const lines = fullSource.split(/\r?\n/);
-            
-            if (lines.length <= cutoffLine) {
-                elErrorOutput.value = `源码总行数 (${lines.length}) 小于截取阈值 (${cutoffLine})，没有后续数据。`;
-                return;
-            }
-
-            // slice 参数为索引，cutoffLine 表示去掉前 N 行，正好对应 slice(N)
-            const filteredLines = lines.slice(cutoffLine);
-            const resultText = filteredLines.join('\n');
-
-            elErrorOutput.value = resultText;
-            
-            // 滚动到顶部方便查看
-            elErrorOutput.scrollTop = 0;
-            eda.sys_Message.showToastMessage(`已获取源码 (过滤前 ${cutoffLine} 行)`, "success");
-
-        } catch (err) {
-            console.error(err);
-            elErrorOutput.style.color = "#f48771";
-            elErrorOutput.value = `[获取失败]: ${err.message}`;
-        }
-    }
 
     async function copyErrorLog() {
         const content = elErrorOutput.value;
@@ -145,7 +74,7 @@
 
     function showCopyFeedback() {
         const originalText = elBtnCopy.innerText;
-        elBtnCopy.innerText = "已复制";
+        elBtnCopy.innerText = "已复制剪贴板";
         elBtnCopy.style.backgroundColor = "#2da042";
         setTimeout(() => {
             elBtnCopy.innerText = originalText;
