@@ -4,6 +4,12 @@
 
 ![视频标题](images/video.jpg)
 
+[![演示视频](images/video.jpg)](https://pbt-pub.jlc.com/pbt/bbs/8705909115009617920-20260131_195316.mp4)
+
+<video controls>
+  <source src="https://pbt-pub.jlc.com/pbt/bbs/8705909115009617920-20260131_195316.mp4" type="video/mp4">
+</video>
+
 ## 为什么需要这个插件？
 
 如果你在做 EDA 源码级开发，一定被下面这个场景折磨过
