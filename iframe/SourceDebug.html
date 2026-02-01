@@ -15,28 +15,52 @@
         ::-webkit-scrollbar-track { background: #1e1e1e; }
         ::-webkit-scrollbar-thumb { background-color: #424242; border-radius: 6px; border: 3px solid #1e1e1e; }
         .container { display: flex; flex-direction: column; height: 100%; width: 100%; box-sizing: border-box; padding: 10px; }
+        
+        /* 顶部工具栏 */
         .toolbar { display: flex; justify-content: space-between; align-items: center; height: 40px; flex-shrink: 0; margin-bottom: 5px; }
         h2 { font-size: 16px; margin: 0; color: #4ec9b0; font-weight: bold; }
+        
+        /* 按钮组 */
         .btn-group { display: flex; gap: 10px; }
         button { color: white; border: none; padding: 5px 15px; cursor: pointer; font-size: 14px; border-radius: 3px; transition: background-color 0.2s; }
         
-        /* 按钮样式定义 */
-        #btnImport { background-color: #0e639c; }
+        /* 按钮颜色定义 */
+        #btnImport { background-color: #0e639c; } /* 逐行追加 - 蓝色 */
         #btnImport:hover { background-color: #1177bb; }
         #btnImport:disabled { background-color: #555; cursor: not-allowed; }
+
+        #btnBulk { background-color: #c05d21; } /* 全部追加 - 橙色 */
+        #btnBulk:hover { background-color: #d66b2d; }
+        #btnBulk:disabled { background-color: #555; cursor: not-allowed; }
         
-        /* 复制和获取源码按钮使用深色风格 */
-        #btnCopy, #btnGetSource { background-color: #3a3d41; border: 1px solid #454545; }
-        #btnCopy:hover, #btnGetSource:hover { background-color: #4a4d51; }
+        #btnGetSource { background-color: #3a3d41; border: 1px solid #454545; }
+        #btnGetSource:hover { background-color: #4a4d51; }
         
-        /* 清空并粘贴按钮使用紫色风格以示区分 */
-        #btnPaste { background-color: #6c429c; }
+        #btnPaste { background-color: #6c429c; } /* 紫色 */
         #btnPaste:hover { background-color: #7e5bb0; }
 
-        .label-text { font-size: 12px; color: #FFF; margin-bottom: 3px; flex-shrink: 0; }
+        /* 底部输出栏头部样式 (Label + Copy Button) */
+        .output-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end; /* 底部对齐 */
+            margin-top: 10px;
+            margin-bottom: 5px;
+            flex-shrink: 0;
+        }
+        
+        #btnCopy { 
+            background-color: #3a3d41; border: 1px solid #454545; 
+            font-size: 12px; padding: 3px 10px;
+        }
+        #btnCopy:hover { background-color: #4a4d51; }
+
+        .label-text { font-size: 12px; color: #FFF; margin-bottom: 3px; }
+        
+        /* 输入输出框 */
         textarea { width: 100%; background-color: #252526; color: #d4d4d4; border: 1px solid #3c3c3c; outline: none; padding: 8px; box-sizing: border-box; font-family: inherit; font-size: 13px; flex: 1; white-space: pre; overflow: auto; resize: none; }
         textarea:focus { border-color: #007acc; }
-        #sourceInput { margin-bottom: 10px; }
+        #sourceInput { margin-bottom: 0; } /* margin由output-header控制 */
         #errorOutput { color: #f48771; background-color: #2d2020; }
     </style>
 </head>
@@ -46,43 +70,47 @@
     <div class="toolbar">
         <h2 id="versionTitle">源码追加 Debug 工具</h2>
         <div class="btn-group">
-            <button id="btnGetSource" onclick="getPrimitiveSource()" title="获取当前文档源码（自动过滤头部）">获取图元源码</button>
+            <button id="btnGetSource" onclick="getPrimitiveSource()" title="根据PANELIZE标记获取后续源码">获取图元源码</button>
             <button id="btnPaste" onclick="clearAndPaste()" title="清空上方输入框并粘贴剪贴板内容">清空并粘贴</button>
-            <button id="btnImport" onclick="startAppendProcess()">开始追加更新</button>
-            <button id="btnCopy" onclick="copyErrorLog()" title="复制下方结果框的内容">复制输出结果</button>
+            <button id="btnImport" onclick="startLineByLineProcess()" title="逐行写入并检测每一行的结果">逐行追加</button>
+            <button id="btnBulk" onclick="startBulkProcess()" title="将当前源码与输入框内容合并后一次性写入">全部追加</button>
         </div>
     </div>
 
     <div class="label-text">粘贴要追加的代码:（仅用于测试源码可用性，数量太多会导致 EDA 崩溃）</div>
     <textarea id="sourceInput" placeholder="在此粘贴需要追加的图元源码..."></textarea>
 
-    <div class="label-text" style="margin-top: 10px;">处理结果:</div>
+    <div class="output-header">
+        <div class="label-text">处理结果:</div>
+        <button id="btnCopy" onclick="copyErrorLog()" title="复制下方结果框的内容">复制输出结果</button>
+    </div>
     <textarea id="errorOutput" placeholder="结果将显示在这里..." readonly></textarea>
 </div>
 
 <script>
     const elSourceInput = document.getElementById('sourceInput');
     const elErrorOutput = document.getElementById('errorOutput');
-    const elBtn = document.getElementById('btnImport');
+    const elBtnImport = document.getElementById('btnImport');
+    const elBtnBulk = document.getElementById('btnBulk');
     const elBtnCopy = document.getElementById('btnCopy');
 
-    // --- 新增功能：清空并粘贴 ---
+    // --- 功能：清空并粘贴 ---
     async function clearAndPaste() {
         try {
             const text = await navigator.clipboard.readText();
             elSourceInput.value = text;
             elSourceInput.focus();
-            eda.sys_Message.showToastMessage("已清空并粘贴剪贴板内容", "success");
+            if(window.eda && eda.sys_Message) eda.sys_Message.showToastMessage("已清空并粘贴剪贴板内容", "success");
         } catch (err) {
             console.error(err);
-            eda.sys_Message.showToastMessage("无法读取剪贴板，请手动粘贴", "error");
+            if(window.eda && eda.sys_Message) eda.sys_Message.showToastMessage("无法读取剪贴板，请手动粘贴", "error");
         }
     }
 
-    // --- 新增功能：获取图元源码 ---
+    // --- 功能：获取图元源码 ---
     async function getPrimitiveSource() {
         elErrorOutput.value = "正在获取源码...";
-        elErrorOutput.style.color = "#d4d4d4"; // 设置为正常文本颜色
+        elErrorOutput.style.color = "#d4d4d4";
 
         try {
             // 1. 获取版本
@@ -97,26 +125,38 @@
                 return;
             }
 
-            // 3. 根据版本确定截取行数
-            // V3: 137行后, V2: 185行后
-            const cutoffLine = isV3 ? 139 : 187;
-            
             const lines = fullSource.split(/\r?\n/);
-            
-            if (lines.length <= cutoffLine) {
-                elErrorOutput.value = `源码总行数 (${lines.length}) 小于截取阈值 (${cutoffLine})，没有后续数据。`;
+            let splitIndex = -1;
+
+            // 3. 根据版本查找特征行
+            if (isV3) {
+                // V3: 查找 {"type":"PANELIZE"...}
+                splitIndex = lines.findIndex(line => line.includes('{"type":"PANELIZE",'));
+            } else {
+                // V2: 查找 ["PANELIZE_SIDE",...]
+                splitIndex = lines.findIndex(line => line.includes('["PANELIZE",')) + 4;
+            }
+
+            if (splitIndex === -1) {
+                elErrorOutput.value = isV3 
+                    ? `未在源码中找到 "PANELIZE" 标记，无法自动截取。` 
+                    : `未在源码中找到 "PANELIZE_SIDE" 标记，无法自动截取。`;
                 return;
             }
 
-            // slice 参数为索引，cutoffLine 表示去掉前 N 行，正好对应 slice(N)
-            const filteredLines = lines.slice(cutoffLine);
-            const resultText = filteredLines.join('\n');
-
-            elErrorOutput.value = resultText;
+            // 4. 获取标记行之后的所有数据
+            const filteredLines = lines.slice(splitIndex + 1);
             
-            // 滚动到顶部方便查看
+            if (filteredLines.length === 0) {
+                elErrorOutput.value = `找到标记行 (行号 ${splitIndex + 1})，但其后没有数据。`;
+                return;
+            }
+
+            const resultText = filteredLines.join('\n');
+            elErrorOutput.value = resultText;
             elErrorOutput.scrollTop = 0;
-            eda.sys_Message.showToastMessage(`已获取源码 (过滤前 ${cutoffLine} 行)`, "success");
+            
+            eda.sys_Message.showToastMessage(`已获取源码 (从第 ${splitIndex + 2} 行开始)`, "success");
 
         } catch (err) {
             console.error(err);
@@ -153,8 +193,93 @@
         }, 1500);
     }
 
-    // --- 主处理逻辑 ---
-    async function startAppendProcess() {
+    // --- 核心修复：全部追加 (一次性写入) ---
+    async function startBulkProcess() {
+        const inputCode = elSourceInput.value.trim();
+        if (!inputCode) {
+            eda.sys_Message.showToastMessage("请先输入要追加的代码！","info");
+            return;
+        }
+
+        elErrorOutput.value = "正在处理全部追加...";
+        elErrorOutput.style.color = "#d4d4d4";
+        setButtonsDisabled(true);
+
+        try {
+            const version = await eda.sys_Environment.getEditorCurrentVersion();
+            const isV3 = version.startsWith('3.');
+            let currentBaseSource = await eda.sys_FileManager.getDocumentSource();
+            
+            let finalSource = "";
+
+            if (isV3) {
+                // --- V3 严格处理逻辑 ---
+                
+                // 1. 处理基础源码 (Base)
+                // 如果基础源码最后没有 |，则加上 |，作为连接符
+                if (currentBaseSource && currentBaseSource.trim() !== "") {
+                    // 移除末尾可能的空白字符，确保判断准确
+                    let tempBase = currentBaseSource.trimEnd(); 
+                    if (!tempBase.endsWith('|')) {
+                        tempBase += "|";
+                    }
+                    currentBaseSource = tempBase;
+                }
+
+                // 2. 处理待追加源码 (Input)
+                // 先分割行，过滤空行
+                const inputLines = inputCode.split(/\r?\n/).filter(l => l.trim() !== "");
+                
+                // 3. 清洗输入行：把所有行的末尾 | 都去掉
+                const sanitizedLines = inputLines.map(line => {
+                    let l = line.trim();
+                    if (l.endsWith('|')) {
+                        l = l.slice(0, -1);
+                    }
+                    return l;
+                });
+
+                // 4. 重新拼接：用 "|\n" 连接
+                // 效果：Line1|\nLine2|\nLine3
+                // 这样最后一行Line3后面绝对没有 |
+                const processedInputBlock = sanitizedLines.join('|\n');
+
+                // 5. 最终合并
+                // 基础源码(已补|) + 换行 + 处理后的新块(无末尾|)
+                if (!currentBaseSource || currentBaseSource.trim() === "") {
+                    finalSource = processedInputBlock;
+                } else {
+                    finalSource = currentBaseSource + "\n" + processedInputBlock;
+                }
+
+            } else {
+                // --- V2 处理逻辑 ---
+                const separator = currentBaseSource.endsWith('\n') ? "" : "\n";
+                finalSource = currentBaseSource + separator + inputCode;
+            }
+
+            // 6. 写入 EDA
+            const isSuccess = await eda.sys_FileManager.setDocumentSource(finalSource);
+
+            if (isSuccess) {
+                elErrorOutput.style.color = "#4ec9b0"; 
+                elErrorOutput.value = "蒸蚌！全部追加成功！";
+                if(window.eda && eda.sys_Message) eda.sys_Message.showToastMessage("全部追加成功", "success");
+            } else {
+                elErrorOutput.style.color = "#f48771";
+                elErrorOutput.value = "\n萝卜！萝卜！萝卜！";
+            }
+
+        } catch (err) {
+            console.error(err);
+            elErrorOutput.value = `[系统错误]: ${err.message}`;
+        } finally {
+            setButtonsDisabled(false);
+        }
+    }
+
+    // --- 原功能：逐行追加 (Line-by-Line) ---
+    async function startLineByLineProcess() {
         const inputCode = elSourceInput.value.trim();
         if (!inputCode) {
             eda.sys_Message.showToastMessage("请先输入要追加的代码！","info");
@@ -163,21 +288,20 @@
 
         elErrorOutput.value = "";
         elErrorOutput.style.color = "#f48771"; 
-        elBtn.disabled = true;
+        setButtonsDisabled(true);
         
         let errorCount = 0; 
 
         try {
-            // 1. 获取客户端版本
             const version = await eda.sys_Environment.getEditorCurrentVersion();
             const isV3 = version.startsWith('3.');
-
-            // 2. 获取原始源码
             let currentBaseSource = await eda.sys_FileManager.getDocumentSource();
             
-            // 3. 处理 V3 基础源码末尾补齐管道符
-            if (isV3 && currentBaseSource && !currentBaseSource.endsWith('|')) {
-                currentBaseSource += "|";
+            // V3 初始化：如果基础源码不为空且不以 | 结尾，先补一个
+            if (isV3 && currentBaseSource && currentBaseSource.trim() !== "") {
+                if(!currentBaseSource.trimEnd().endsWith('|')) {
+                     currentBaseSource = currentBaseSource.trimEnd() + "|";
+                }
             }
 
             const linesToAppend = inputCode.split(/\r?\n/).filter(l => l.trim() !== "");
@@ -185,20 +309,19 @@
 
             for (let i = 0; i < linesToAppend.length; i++) {
                 let line = linesToAppend[i].trim();
-                elBtn.innerText = `处理中 ${i + 1}/${linesToAppend.length}`;
+                elBtnImport.innerText = `进度 ${i + 1}/${linesToAppend.length}`;
 
                 let candidateSource = "";
 
                 if (isV3) {
-                    // V3 逻辑：
-                    // 去掉待追加行末尾的 |
+                    // 去掉待追加行的末尾 | (如果存在)
                     if (line.endsWith('|')) {
                         line = line.slice(0, -1);
                     }
-                    // 拼接：旧源码(已有|) + \n + 新行
+                    // 此时 currentBaseSource 应该已经是以 | 结尾的（除了空文档）
+                    // 拼接逻辑：Base(含|) + \n + Line
                     candidateSource = currentBaseSource + "\n" + line;
                 } else {
-                    // V2 逻辑：原样换行追加
                     const separator = currentBaseSource.endsWith('\n') ? "" : "\n";
                     candidateSource = currentBaseSource + separator + line;
                 }
@@ -207,13 +330,14 @@
 
                 if (isSuccess) {
                     currentBaseSource = candidateSource;
-                    // V3 写入成功后，为下一次循环补齐末尾 |（因为 V3 setDocumentSource 成功后获取的可能又不带 |）
-                    if (isV3 && !currentBaseSource.endsWith('|')) {
+                    // V3: 写入成功后，这一行变成了最后一行，它没有 |
+                    // 为了下一轮循环，我们需要给它补上 |
+                    if (isV3) {
                         currentBaseSource += "|";
                     }
                 } else {
                     errorCount++;
-                    resultLog += line + "\n";
+                    resultLog += `${line}\n`;
                     elErrorOutput.value = resultLog;
                     elErrorOutput.scrollTop = elErrorOutput.scrollHeight;
                 }
@@ -231,9 +355,14 @@
             console.error(err);
             elErrorOutput.value += `\n[系统错误]: ${err.message}`;
         } finally {
-            elBtn.disabled = false;
-            elBtn.innerText = "开始追加更新";
+            setButtonsDisabled(false);
+            elBtnImport.innerText = "逐行追加";
         }
+    }
+
+    function setButtonsDisabled(disabled) {
+        elBtnImport.disabled = disabled;
+        elBtnBulk.disabled = disabled;
     }
 </script>
 </body>

@@ -1,6 +1,6 @@
 # 源码追加 Debug 工具
 
-### [点击查看：演示视频](https://pbt-pub.jlc.com/pbt/bbs/8705937944942686208-20260131_195316.mp4)
+### [点击查看：演示视频](https://pbt-pub.jlc.com/pbt/bbs/8706330874989654016-20260201_235211.mp4)
 
 ![视频截图](images/video.jpg)
 
