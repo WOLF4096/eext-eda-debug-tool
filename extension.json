@@ -3,7 +3,7 @@
 	"uuid": "00000000wolfblackdebugtool000000",
 	"displayName": "源码追加Debug工具",
 	"description": "将出错的源码找出来",
-	"version": "1.0.3",
+	"version": "1.0.4",
 	"publisher": "wolfblack",
 	"engines": {
 		"eda": "^2.2.45"

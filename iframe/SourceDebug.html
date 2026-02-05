@@ -77,7 +77,7 @@
         </div>
     </div>
 
-    <div class="label-text">粘贴要追加的代码:（仅用于测试源码可用性，数量太多会导致 EDA 崩溃）</div>
+    <div class="label-text">粘贴要追加的代码:</div>
     <textarea id="sourceInput" placeholder="在此粘贴需要追加的图元源码..."></textarea>
 
     <div class="output-header">
@@ -278,85 +278,170 @@
         }
     }
 
-    // --- 原功能：逐行追加 (Line-by-Line) ---
+    // --- 核心修复：二分法/分块追加 (带停止功能 & UI优化) ---
     async function startLineByLineProcess() {
         const inputCode = elSourceInput.value.trim();
         if (!inputCode) {
-            eda.sys_Message.showToastMessage("请先输入要追加的代码！","info");
+            eda.sys_Message.showToastMessage("请先输入要追加的代码！", "info");
             return;
         }
 
+        // --- 1. 状态与UI初始化 ---
+        let stopRequested = false; // 停止标志位
+
+        // 备份 "全部追加" 按钮的原始状态
+        const originalBulkText = elBtnBulk.innerText;
+        const originalBulkColor = elBtnBulk.style.backgroundColor;
+        const originalBulkOnClick = elBtnBulk.onclick;
+
+        // 修改 "全部追加" 按钮为 "停止" 按钮
+        elBtnBulk.innerText = "停止";
+        elBtnBulk.style.backgroundColor = "#c93c3c"; // 红色警示
+        elBtnBulk.onclick = function() {
+            stopRequested = true;
+            elBtnBulk.innerText = "正在停止...";
+            elBtnBulk.disabled = true; // 防止重复点击
+        };
+
+        // 禁用当前按钮(逐行)，启用停止按钮
+        elBtnImport.disabled = true;
+        elBtnBulk.disabled = false;
+
         elErrorOutput.value = "";
-        elErrorOutput.style.color = "#f48771"; 
-        setButtonsDisabled(true);
+        elErrorOutput.style.color = "#f48771";
         
-        let errorCount = 0; 
+        let allLines = inputCode.split(/\r?\n/).filter(l => l.trim() !== "");
+        let errorLog = "";
+        let errorCount = 0;
 
         try {
+            // --- 2. 环境初始化 ---
             const version = await eda.sys_Environment.getEditorCurrentVersion();
             const isV3 = version.startsWith('3.');
             let currentBaseSource = await eda.sys_FileManager.getDocumentSource();
-            
-            // V3 初始化：如果基础源码不为空且不以 | 结尾，先补一个
+
             if (isV3 && currentBaseSource && currentBaseSource.trim() !== "") {
-                if(!currentBaseSource.trimEnd().endsWith('|')) {
-                     currentBaseSource = currentBaseSource.trimEnd() + "|";
+                if (!currentBaseSource.trimEnd().endsWith('|')) {
+                    currentBaseSource = currentBaseSource.trimEnd() + "|";
                 }
             }
 
-            const linesToAppend = inputCode.split(/\r?\n/).filter(l => l.trim() !== "");
-            let resultLog = "";
+            // --- 3. 设定初始块大小 ---
+            let chunkSize = (allLines.length < 256) ? 1 : 1024;
+            let currentQueue = allLines;
 
-            for (let i = 0; i < linesToAppend.length; i++) {
-                let line = linesToAppend[i].trim();
-                elBtnImport.innerText = `进度 ${i + 1}/${linesToAppend.length}`;
-
-                let candidateSource = "";
-
-                if (isV3) {
-                    // 去掉待追加行的末尾 | (如果存在)
-                    if (line.endsWith('|')) {
-                        line = line.slice(0, -1);
-                    }
-                    // 此时 currentBaseSource 应该已经是以 | 结尾的（除了空文档）
-                    // 拼接逻辑：Base(含|) + \n + Line
-                    candidateSource = currentBaseSource + "\n" + line;
-                } else {
-                    const separator = currentBaseSource.endsWith('\n') ? "" : "\n";
-                    candidateSource = currentBaseSource + separator + line;
+            // --- 4. 循环处理 ---
+            while (currentQueue.length > 0) {
+                // [检测停止]：如果在循环开始前按下了停止
+                if (stopRequested) {
+                    elErrorOutput.value += "\n\n[用户操作]: 已手动停止追加任务。";
+                    break;
                 }
 
-                const isSuccess = await eda.sys_FileManager.setDocumentSource(candidateSource);
-
-                if (isSuccess) {
-                    currentBaseSource = candidateSource;
-                    // V3: 写入成功后，这一行变成了最后一行，它没有 |
-                    // 为了下一轮循环，我们需要给它补上 |
-                    if (isV3) {
-                        currentBaseSource += "|";
+                let nextPassQueue = [];
+                
+                // [UI 更新]：双行显示，字体变小 (12px)，行高紧凑
+                elBtnImport.innerHTML = `
+                    <div style="font-size: 11px; line-height: 1.2; display: flex; flex-direction: column; align-items: center;">
+                        <span>${chunkSize} 行/次</span>
+                        <span>剩余: ${currentQueue.length}</span>
+                    </div>
+                `;
+                
+                // 遍历当前队列
+                for (let i = 0; i < currentQueue.length; i += chunkSize) {
+                    // [检测停止]：如果在循环过程中按下了停止
+                    if (stopRequested) {
+                        break;
                     }
-                } else {
-                    errorCount++;
-                    resultLog += `${line}\n`;
-                    elErrorOutput.value = resultLog;
-                    elErrorOutput.scrollTop = elErrorOutput.scrollHeight;
+
+                    const chunkLines = currentQueue.slice(i, i + chunkSize);
+                    const success = await tryAppendChunk(currentBaseSource, chunkLines, isV3);
+
+                    if (success) {
+                        currentBaseSource = success.newSource;
+                    } else {
+                        if (chunkSize === 1) {
+                            errorCount++;
+                            errorLog += `${chunkLines[0]}\n`;
+                            elErrorOutput.value = errorLog;
+                            elErrorOutput.scrollTop = elErrorOutput.scrollHeight;
+                        } else {
+                            nextPassQueue.push(...chunkLines);
+                        }
+                    }
+                    
+                    // 防卡顿
+                    if (i % (chunkSize * 5) === 0) await new Promise(r => setTimeout(r, 0)); 
                 }
+
+                if (stopRequested || chunkSize === 1) break;
+                
+                currentQueue = nextPassQueue;
+                chunkSize = Math.max(1, Math.floor(chunkSize / 2));
             }
 
-            if (errorCount === 0) {
-                elErrorOutput.style.color = "#4ec9b0"; 
-                elErrorOutput.value = "蒸蚌！全部追加成功！";
-            } else {
-                elErrorOutput.style.color = "#f48771";
-                elErrorOutput.value += `\n萝卜！萝卜！萝卜！`;
+            // --- 5. 结果显示 ---
+            if (!stopRequested) {
+                if (errorCount === 0) {
+                    elErrorOutput.style.color = "#4ec9b0";
+                    elErrorOutput.value = "蒸蚌！全部追加成功！(无报错)";
+                    if (window.eda) eda.sys_Message.showToastMessage("追加完成", "success");
+                } else {
+                    elErrorOutput.style.color = "#f48771";
+                    elErrorOutput.value = errorLog + `\n------------------\n共发现 ${errorCount} 行错误代码`;
+                    if (window.eda) eda.sys_Message.showToastMessage(`发现 ${errorCount} 个错误`, "error");
+                }
             }
 
         } catch (err) {
             console.error(err);
-            elErrorOutput.value += `\n[系统错误]: ${err.message}`;
+            elErrorOutput.value += `\n[系统异常]: ${err.message}`;
         } finally {
-            setButtonsDisabled(false);
-            elBtnImport.innerText = "逐行追加";
+            // --- 6. 恢复 UI 状态 ---
+            elBtnImport.disabled = false;
+            elBtnImport.innerText = "逐行追加"; // 恢复原始文字
+            
+            // 恢复 "全部追加" 按钮
+            elBtnBulk.onclick = originalBulkOnClick;
+            elBtnBulk.innerText = originalBulkText;
+            elBtnBulk.style.backgroundColor = ""; // 清空内联样式，恢复CSS默认
+            elBtnBulk.disabled = false;
+        }
+    }
+
+    /**
+     * 辅助函数：尝试追加一个代码块
+     * 返回对象 { newSource: string } 表示成功，返回 false 表示失败
+     */
+    async function tryAppendChunk(baseSource, lines, isV3) {
+        let candidateSource = "";
+        
+        if (isV3) {
+            // V3逻辑：
+            // 1. 清理块中每一行的末尾 |
+            const sanitizedBlock = lines.map(line => line.trim().endsWith('|') ? line.trim().slice(0, -1) : line.trim());
+            // 2. 用 |\n 连接
+            const blockStr = sanitizedBlock.join('|\n');
+            // 3. 拼接到 Base (Base此时应该已有末尾的 |)
+            candidateSource = baseSource + "\n" + blockStr;
+        } else {
+            // V2逻辑：直接换行拼接
+            const separator = baseSource.endsWith('\n') ? "" : "\n";
+            const blockStr = lines.join('\n');
+            candidateSource = baseSource + separator + blockStr;
+        }
+
+        const isSuccess = await eda.sys_FileManager.setDocumentSource(candidateSource);
+        
+        if (isSuccess) {
+            // 成功后，为了下一次追加，V3需要补上末尾的 |
+            if (isV3) {
+                candidateSource += "|";
+            }
+            return { newSource: candidateSource };
+        } else {
+            return false;
         }
     }
 
